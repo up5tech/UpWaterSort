@@ -1,0 +1,33 @@
+name: up_water_sort
+description: UpWaterSort - an offline water sort puzzle game
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+
+# Exact pins (decided 2026-11-06, AGENTS.md section 10).
+# Run `flutter pub outdated` before changing any version.
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: 6.1.5+1
+  shared_preferences: 2.5.6
+  audioplayers: 6.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+  flutter_launcher_icons: 0.14.4
+
+flutter:
+  uses-material-design: true
+  # Bundled asset directories. Fonts are deliberately not declared yet:
+  # Phase 0 uses the system font; CC0 font/audio sources still need to be
+  # chosen and recorded in ASSETS_LICENSE.md before Phase 5/6.
+  assets:
+    - assets/levels/
+    - assets/audio/
+    - assets/images/
+    - assets/fonts/
