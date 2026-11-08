@@ -11,9 +11,9 @@ import 'package:up_water_sort/domain/models/level_data.dart';
 /// The seed is fixed at 2024 so the output is reproducible; never hand-edit
 /// `assets/levels/levels.json` or its `par` values.
 void main(List<String> args) {
-  // Phase 1 trial (PLAN.md 21): 30 levels. Raise the count only after the
-  // full level count / capacity-5 tier is settled (AGENTS.md 10, item 4).
-  final totalLevels = args.isEmpty ? 30 : int.tryParse(args.first);
+  // Full release set (decided 2026-11-08, AGENTS.md 10 item 4): 120 levels,
+  // capacity 4 throughout, colours 3 → 12 (PLAN.md 9.1, 9.4).
+  final totalLevels = args.isEmpty ? 120 : int.tryParse(args.first);
   if (totalLevels == null || totalLevels < 1) {
     stderr.writeln('Usage: dart run tool/generate_levels.dart [levelCount]');
     exit(64);

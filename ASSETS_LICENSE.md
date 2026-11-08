@@ -20,6 +20,16 @@ as **CC0 / public domain** together with the source script.
 Format: 16-bit PCM mono WAV, 44.1 kHz (playback via `audioplayers` `AssetSource`;
 no network access).
 
+## Artwork — `assets/images/icon.png`, `assets/images/icon_mark.png`
+
+Original vector-style artwork drawn from scratch for this project with
+ImageMagick (three tubes with layered liquid on a navy gradient). The same mark
+is reused for the Android splash (`res/drawable-nodpi/splash_logo.png`),
+the iOS launch images and the Adaptive Icon foreground. Released as **CC0**.
+
+Regenerate with `dart run flutter_launcher_icons` after replacing the artwork;
+the launch images are exported at 1x/2x/3x from `icon_mark.png`.
+
 ## Fonts — `assets/fonts/`
 
 Currently empty: the app uses the platform system font. A CC0 display font

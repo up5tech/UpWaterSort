@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:up_water_sort/controllers/game_controller.dart';
@@ -63,14 +65,15 @@ class TestHarness {
     );
   }
 
-  /// Bundled levels are immutable once loaded, so share one repository: a
-  /// second `rootBundle` read inside a widget test's fake-async zone hangs.
+  /// Bundled levels are immutable once loaded, so share one repository.
+  ///
+  /// The JSON is read with `dart:io` instead of `rootBundle`: asset-channel
+  /// futures never complete inside a widget test's fake-async zone.
   static Future<LevelRepository> _sharedLevels() async {
     final cached = _levels;
     if (cached != null) return cached;
-    final repository = LevelRepository();
-    await repository.load();
-    return _levels = repository;
+    final raw = File('assets/levels/levels.json').readAsStringSync();
+    return _levels = LevelRepository.fromSource(raw);
   }
 
   static LevelRepository? _levels;

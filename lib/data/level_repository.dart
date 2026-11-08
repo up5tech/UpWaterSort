@@ -10,6 +10,14 @@ class LevelRepository {
 
   List<LevelData> _levels = const <LevelData>[];
 
+  LevelRepository();
+
+  /// Builds a repository from an already-read JSON document. Used by tests
+  /// (which can read the bundled file directly) and by offline tooling.
+  LevelRepository.fromSource(String source) {
+    _levels = parse(source);
+  }
+
   /// Levels in bundled (difficulty) order. Treat as read-only.
   List<LevelData> get levels => _levels;
 

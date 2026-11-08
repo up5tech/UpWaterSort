@@ -98,6 +98,8 @@ void main() {
     final decoded = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     expect(decoded['version'], 1);
     final rawLevels = decoded['levels'] as List;
+    // Release set decided 2026-11-08 (AGENTS.md 10, item 4).
+    expect(rawLevels.length, 120);
     expect(rawLevels, isNotEmpty);
 
     for (var i = 0; i < rawLevels.length; i++) {

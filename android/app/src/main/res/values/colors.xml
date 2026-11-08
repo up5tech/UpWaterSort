@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the app icon background, used by both launch backgrounds. -->
+    <color name="splash_background">#0B1524</color>
+	<color name="ic_launcher_background">#0B1524</color>
+</resources>

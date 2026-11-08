@@ -8,7 +8,7 @@ void main() {
     final repository = LevelRepository();
     await repository.load();
 
-    expect(repository.count, 30);
+    expect(repository.count, 120);
     for (var i = 0; i < repository.levels.length; i++) {
       final level = repository.levels[i];
       expect(level.id, i + 1);

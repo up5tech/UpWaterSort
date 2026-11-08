@@ -43,7 +43,9 @@ void main() {
     expect(find.text('30'), findsOneWidget);
     expect(find.byIcon(Icons.star), findsNWidgets(3));
     expect(find.byIcon(Icons.star_border), findsNWidgets(3));
-    expect(find.byIcon(Icons.lock), findsNWidgets(28));
+    // 120 bundled levels, only level 2 is unlocked: the grid builds the
+    // visible tiles lazily, so assert a large locked set rather than all 119.
+    expect(find.byIcon(Icons.lock), findsAtLeastNWidgets(50));
 
     // Level 3 is still locked.
     await tester.tap(find.text('3'));
