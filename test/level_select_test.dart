@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:up_water_sort/app.dart';
 import 'package:up_water_sort/controllers/game_controller.dart';
 import 'package:up_water_sort/controllers/progress_controller.dart';
+import 'package:up_water_sort/controllers/settings_controller.dart';
 import 'package:up_water_sort/ui/screens/game_screen.dart';
 
 import 'harness.dart';
@@ -25,6 +26,9 @@ void main() {
         providers: [
           ChangeNotifierProvider<ProgressController>.value(
             value: harness.progress,
+          ),
+          ChangeNotifierProvider<SettingsController>.value(
+            value: harness.settings,
           ),
           ChangeNotifierProvider<GameController>.value(value: harness.game),
         ],

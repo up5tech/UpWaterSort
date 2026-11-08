@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
+import '../../controllers/settings_controller.dart';
+import '../../core/strings.dart';
 import '../animation/pour_animator.dart';
 import '../animation/win_confetti.dart';
 import '../widgets/game_toolbar.dart';
@@ -117,11 +119,14 @@ class _GameScreenState extends State<GameScreen>
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
+    final strings = stringsFor(context.watch<SettingsController>().locale);
     final level = game.level;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(level == null ? 'UpWaterSort' : 'Level ${level.id}'),
+        title: Text(
+          level == null ? strings.appName : strings.levelTitle(level.id),
+        ),
       ),
       body: SafeArea(
         child: game.isStarted
@@ -135,7 +140,8 @@ class _GameScreenState extends State<GameScreen>
                           geometry: _geometry,
                         ),
                       ),
-                      if (game.status == GameStatus.stuck) const _StuckBanner(),
+                      if (game.status == GameStatus.stuck)
+                        _StuckBanner(text: strings.noMovesLeft),
                       const GameToolbar(),
                     ],
                   ),
@@ -143,21 +149,23 @@ class _GameScreenState extends State<GameScreen>
                     const Positioned.fill(child: WinConfetti()),
                 ],
               )
-            : const Center(child: Text('No levels available.')),
+            : Center(child: Text(strings.noLevels)),
       ),
     );
   }
 }
 
 class _StuckBanner extends StatelessWidget {
-  const _StuckBanner();
+  const _StuckBanner({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(
-        'No moves left. Undo or restart.',
+        text,
         style: Theme.of(context).textTheme.bodyMedium,
         textAlign: TextAlign.center,
       ),

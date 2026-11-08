@@ -14,6 +14,7 @@ class TubePainter extends CustomPainter {
     required this.selected,
     required this.colorBlind,
     required this.complete,
+    this.hinted = false,
     this.topLayerFraction = 1,
     this.extraLayerColor,
     this.extraLayerFraction = 0,
@@ -24,6 +25,9 @@ class TubePainter extends CustomPainter {
   final bool selected;
   final bool colorBlind;
   final bool complete;
+
+  /// Highlighted by the current hint (source or destination).
+  final bool hinted;
 
   /// Visible part of the top layer, 0..1 (1 = whole layer).
   final double topLayerFraction;
@@ -124,7 +128,11 @@ class TubePainter extends CustomPainter {
         ..strokeWidth = selected ? 3.5 : 2.5
         ..color = complete
             ? Colors.amber
-            : (selected ? Colors.white : Colors.white70),
+            : selected
+            ? Colors.white
+            : hinted
+            ? Colors.lightBlueAccent
+            : Colors.white70,
     );
   }
 
@@ -134,6 +142,7 @@ class TubePainter extends CustomPainter {
       oldDelegate.capacity != capacity ||
       oldDelegate.colorBlind != colorBlind ||
       oldDelegate.complete != complete ||
+      oldDelegate.hinted != hinted ||
       oldDelegate.topLayerFraction != topLayerFraction ||
       oldDelegate.extraLayerColor != extraLayerColor ||
       oldDelegate.extraLayerFraction != extraLayerFraction ||

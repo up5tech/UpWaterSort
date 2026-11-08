@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
+import '../../controllers/settings_controller.dart';
 import '../../core/palette.dart';
+import '../../core/strings.dart';
 import '../animation/pour_animator.dart';
 import 'tube_painter.dart';
 import 'tube_widget.dart';
@@ -27,11 +29,14 @@ class TubesBoard extends StatelessWidget {
 
     return ListenableBuilder(
       listenable: listenable,
-      builder: (context, _) => _buildBoard(game),
+      builder: (context, _) => _buildBoard(context, game),
     );
   }
 
-  Widget _buildBoard(GameController game) {
+  Widget _buildBoard(BuildContext context, GameController game) {
+    final settings = context.watch<SettingsController>();
+    final strings = stringsFor(settings.locale);
+    final hint = game.hint;
     final tubeCount = game.tubes.length;
     if (tubeCount == 0) return const SizedBox.shrink();
 
@@ -93,10 +98,24 @@ class TubesBoard extends StatelessWidget {
               for (var i = 0; i < tubeCount; i++)
                 Positioned.fromRect(
                   rect: rects[i]!,
-                  child: _tube(game, i, tubeWidth, tubeHeight, lift),
+                  child: _tube(
+                    game,
+                    i,
+                    tubeWidth,
+                    tubeHeight,
+                    lift,
+                    colorBlind: settings.colorBlind,
+                    tubeLabel: strings.tubeLabel(i + 1),
+                    hinted: hint != null && (hint.from == i || hint.to == i),
+                  ),
                 ),
               if (animating && pourColor != null)
-                _flyingTube(animator!, game.capacity, pourColor),
+                _flyingTube(
+                  animator!,
+                  game.capacity,
+                  pourColor,
+                  settings.colorBlind,
+                ),
             ],
           ),
         );
@@ -109,8 +128,11 @@ class TubesBoard extends StatelessWidget {
     int index,
     double tubeWidth,
     double tubeHeight,
-    double lift,
-  ) {
+    double lift, {
+    required bool colorBlind,
+    required String tubeLabel,
+    required bool hinted,
+  }) {
     final animation = animator;
     final move = animation?.move;
     final before = animation?.before;
@@ -138,6 +160,9 @@ class TubesBoard extends StatelessWidget {
       selected: game.selected == index,
       complete: game.isComplete(index),
       lift: lift,
+      colorBlind: colorBlind,
+      hinted: hinted,
+      semanticsLabel: tubeLabel,
       hidden: isSource,
       extraLayerColor: extraColor,
       extraLayerFraction: extraFraction,
@@ -145,7 +170,12 @@ class TubesBoard extends StatelessWidget {
     );
   }
 
-  Widget _flyingTube(PourAnimator animation, int capacity, int pourColor) {
+  Widget _flyingTube(
+    PourAnimator animation,
+    int capacity,
+    int pourColor,
+    bool colorBlind,
+  ) {
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
@@ -171,7 +201,7 @@ class TubesBoard extends StatelessWidget {
                     layers: animation.flyingLayers,
                     capacity: capacity,
                     selected: false,
-                    colorBlind: false,
+                    colorBlind: colorBlind,
                     complete: false,
                     topLayerFraction: animation.flyingTopFraction,
                   ),

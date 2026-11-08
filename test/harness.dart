@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:up_water_sort/controllers/game_controller.dart';
 import 'package:up_water_sort/controllers/progress_controller.dart';
+import 'package:up_water_sort/controllers/settings_controller.dart';
+import 'package:up_water_sort/data/audio_service.dart';
 import 'package:up_water_sort/data/level_repository.dart';
 import 'package:up_water_sort/data/storage_service.dart';
 import 'package:up_water_sort/domain/models/level_data.dart';
@@ -21,11 +23,20 @@ LevelData testLevel({
 
 /// Test-only wiring of the app's data and controllers.
 class TestHarness {
-  TestHarness._(this.storage, this.levels, this.progress, this.game);
+  TestHarness._(
+    this.storage,
+    this.levels,
+    this.progress,
+    this.settings,
+    this.audio,
+    this.game,
+  );
 
   final StorageService storage;
   final LevelRepository levels;
   final ProgressController progress;
+  final SettingsController settings;
+  final AudioService audio;
   final GameController game;
 
   static Future<TestHarness> create() async {
@@ -35,11 +46,20 @@ class TestHarness {
     final levels = await _sharedLevels();
     final progress = ProgressController(storage: storage, levels: levels)
       ..load();
+    final audio = AudioService();
+    final settings = SettingsController(progress: progress, audio: audio);
     return TestHarness._(
       storage,
       levels,
       progress,
-      GameController(levels: levels, progress: progress),
+      settings,
+      audio,
+      GameController(
+        levels: levels,
+        progress: progress,
+        audio: audio,
+        settings: settings,
+      ),
     );
   }
 
@@ -60,16 +80,26 @@ class TestHarness {
     final storage = await StorageService.create();
     final progress = ProgressController(storage: storage, levels: levels)
       ..load();
+    final audio = AudioService();
+    final settings = SettingsController(progress: progress, audio: audio);
     return TestHarness._(
       storage,
       levels,
       progress,
-      GameController(levels: levels, progress: progress),
+      settings,
+      audio,
+      GameController(
+        levels: levels,
+        progress: progress,
+        audio: audio,
+        settings: settings,
+      ),
     );
   }
 
   void dispose() {
     game.dispose();
+    settings.dispose();
     progress.dispose();
   }
 }

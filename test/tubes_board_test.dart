@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:up_water_sort/controllers/game_controller.dart';
+import 'package:up_water_sort/controllers/settings_controller.dart';
 import 'package:up_water_sort/ui/widgets/tube_widget.dart';
 import 'package:up_water_sort/ui/widgets/tubes_board.dart';
 
@@ -28,8 +29,13 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<GameController>.value(
-        value: harness.game,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<GameController>.value(value: harness.game),
+          ChangeNotifierProvider<SettingsController>.value(
+            value: harness.settings,
+          ),
+        ],
         child: const MaterialApp(home: Scaffold(body: TubesBoard())),
       ),
     );

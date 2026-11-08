@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
 import '../../controllers/progress_controller.dart';
+import '../../controllers/settings_controller.dart';
+import '../../core/strings.dart';
 import 'game_screen.dart';
 
 /// Level picker: one cell per bundled level with its stars, locked until the
@@ -15,10 +17,11 @@ class LevelSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = context.watch<ProgressController>();
+    final strings = stringsFor(context.watch<SettingsController>().locale);
     final levelIds = progress.levelIds;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Select level')),
+      appBar: AppBar(title: Text(strings.selectLevel)),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 500 ? 5 : 4;

@@ -15,6 +15,8 @@ class TubeWidget extends StatefulWidget {
     required this.selected,
     required this.complete,
     required this.lift,
+    this.hinted = false,
+    this.semanticsLabel,
     this.colorBlind = false,
     this.topLayerFraction = 1,
     this.extraLayerColor,
@@ -33,6 +35,12 @@ class TubeWidget extends StatefulWidget {
 
   /// How far the tube rises when selected.
   final double lift;
+
+  /// Part of the current solver hint.
+  final bool hinted;
+
+  /// Localized accessibility label, e.g. "Tube 3".
+  final String? semanticsLabel;
   final bool colorBlind;
   final double topLayerFraction;
   final int? extraLayerColor;
@@ -100,7 +108,7 @@ class _TubeWidgetState extends State<TubeWidget>
           child: Semantics(
             button: true,
             selected: widget.selected,
-            label: 'Tube ${widget.index + 1}',
+            label: widget.semanticsLabel ?? 'Tube ${widget.index + 1}',
             child: SizedBox(
               width: widget.width,
               height: widget.height,
@@ -129,6 +137,7 @@ class _TubeWidgetState extends State<TubeWidget>
                     selected: widget.selected,
                     colorBlind: widget.colorBlind,
                     complete: widget.complete,
+                    hinted: widget.hinted,
                     topLayerFraction: widget.topLayerFraction,
                     extraLayerColor: widget.extraLayerColor,
                     extraLayerFraction: widget.extraLayerFraction,

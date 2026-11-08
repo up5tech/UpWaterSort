@@ -2,23 +2,41 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/audio_service.dart';
 import '../data/level_repository.dart';
 import '../domain/game_rules.dart';
 import '../domain/models/level_data.dart';
 import '../domain/models/move.dart';
 import '../domain/models/save_data.dart';
+import '../domain/solver.dart';
 import 'progress_controller.dart';
+import 'settings_controller.dart';
 
 enum GameStatus { playing, won, stuck }
 
 /// Owns the state of the level being played: tubes, selection, history, move
 /// count and win/stuck status. Every committed state is persisted as the
 /// in-progress game; a win is reported to [ProgressController].
+///
+/// [audio] and [settings] are optional so pure controller tests can run
+/// without platform services. [hintSolver] is injectable so tests do not need
+/// to spawn an isolate.
 class GameController extends ChangeNotifier {
-  GameController({required this.levels, required this.progress});
+  GameController({
+    required this.levels,
+    required this.progress,
+    this.audio,
+    this.settings,
+    this.hintSolver,
+  });
 
   final LevelRepository levels;
   final ProgressController progress;
+  final AudioService? audio;
+  final SettingsController? settings;
+
+  /// Overrides the isolate solver in tests; production uses [compute].
+  final Future<Move?> Function(Tubes tubes, int capacity)? hintSolver;
 
   LevelData? _level;
   Tubes _tubes = const <List<int>>[];
@@ -29,6 +47,13 @@ class GameController extends ChangeNotifier {
   bool _extraTubeUsed = false;
   GameStatus _status = GameStatus.playing;
   final List<Move> _history = <Move>[];
+
+  Move? _hint;
+  bool _hintLoading = false;
+
+  /// Bumped on every state change so a slow hint cannot apply to a board that
+  /// has moved on (PLAN.md §18 item 12).
+  int _version = 0;
 
   bool get isStarted => _level != null;
 
@@ -42,20 +67,30 @@ class GameController extends ChangeNotifier {
 
   int get moves => _moves;
 
-  /// Locks input while a pour animation runs (wired in Phase 4).
+  /// Locks input while a pour animation runs (Phase 4).
   bool get busy => _busy;
 
   GameStatus get status => _status;
 
+  /// The extra tube can be added once per attempt (PLAN.md §18 item 14).
+  bool get extraTubeUsed => _extraTubeUsed;
+
+  /// Suggested move from the last hint, drawn by the board until the next tap.
+  Move? get hint => _hint;
+
+  bool get hintLoading => _hintLoading;
+
   bool get canUndo => _history.isNotEmpty && !_busy;
+
+  bool get canAddExtraTube =>
+      isStarted && _status != GameStatus.won && !_extraTubeUsed && !_busy;
 
   bool get hasNextLevel {
     final current = _level;
     return current != null && levels.hasNext(current.id);
   }
 
-  /// Runs the pouring animation before the move is committed. Phase 2 leaves
-  /// this unset, so the board updates instantly; Phase 4 assigns it.
+  /// Runs the pouring animation before the move is committed.
   Future<void> Function(Move move, Tubes before)? playPourAnimation;
 
   /// True when the tube at [index] is full of a single color.
@@ -90,6 +125,9 @@ class GameController extends ChangeNotifier {
     _selected = null;
     _busy = false;
     _status = GameStatus.playing;
+    _hint = null;
+    _hintLoading = false;
+    _version++;
     unawaited(_persistInProgress());
     notifyListeners();
   }
@@ -107,10 +145,17 @@ class GameController extends ChangeNotifier {
   Future<void> onTubeTap(int index) async {
     if (_busy || _status != GameStatus.playing || _level == null) return;
 
+    if (_hint != null) {
+      _hint = null;
+      _version++;
+    }
+
     // 1. Nothing selected yet -> select the source tube.
     if (_selected == null) {
       if (_tubes[index].isEmpty) return;
       _selected = index;
+      _version++;
+      audio?.play(Sfx.select);
       notifyListeners();
       return;
     }
@@ -118,6 +163,7 @@ class GameController extends ChangeNotifier {
     // 2. Tapping the selected tube again deselects it.
     if (_selected == index) {
       _selected = null;
+      _version++;
       notifyListeners();
       return;
     }
@@ -129,7 +175,12 @@ class GameController extends ChangeNotifier {
     if (!canPour(_tubes, from, index, _capacity)) {
       if (_tubes[index].isNotEmpty) {
         _selected = index;
+        audio?.play(Sfx.select);
+      } else {
+        audio?.play(Sfx.error);
+        settings?.haptic(HapticKind.error);
       }
+      _version++;
       notifyListeners();
       return;
     }
@@ -138,6 +189,8 @@ class GameController extends ChangeNotifier {
     final move = Move(from, index, pourCount(_tubes, from, index, _capacity));
     _busy = true;
     _selected = null;
+    _version++;
+    audio?.play(Sfx.pour);
     notifyListeners();
 
     final before = _tubes;
@@ -148,9 +201,15 @@ class GameController extends ChangeNotifier {
     _moves = _history.length;
     _busy = false;
 
+    if (isTubeComplete(_tubes[move.to], _capacity)) {
+      audio?.play(Sfx.completeTube);
+      settings?.haptic(HapticKind.light);
+    }
+
     if (isWon(_tubes, _capacity)) {
       _status = GameStatus.won;
       await progress.completeLevel(_level!, _moves);
+      audio?.play(Sfx.win);
     } else {
       if (!hasAnyMove(_tubes, _capacity)) {
         _status = GameStatus.stuck;
@@ -167,6 +226,8 @@ class GameController extends ChangeNotifier {
     _moves = _history.length;
     _selected = null;
     _status = GameStatus.playing;
+    _hint = null;
+    _version++;
     await _persistInProgress();
     notifyListeners();
   }
@@ -175,6 +236,57 @@ class GameController extends ChangeNotifier {
     final current = _level;
     if (current == null) return;
     startLevel(current);
+  }
+
+  /// Adds one empty tube, once per attempt. The extra tube is appended last
+  /// and is not recorded in the history, so Undo stays correct
+  /// (PLAN.md §11.2, §18 item 14).
+  bool addExtraTube() {
+    if (!canAddExtraTube) return false;
+    _tubes = [..._tubes, <int>[]];
+    _extraTubeUsed = true;
+    _selected = null;
+    _hint = null;
+    _hintLoading = false;
+    _status = GameStatus.playing;
+    _version++;
+    unawaited(_persistInProgress());
+    notifyListeners();
+    return true;
+  }
+
+  /// Solves the *current* board in an isolate and keeps the first move as a
+  /// hint. Returns false when no hint is available within the node cap.
+  Future<bool> requestHint() async {
+    if (_busy || _hintLoading || _status != GameStatus.playing) return false;
+    if (_level == null) return false;
+
+    _hintLoading = true;
+    _hint = null;
+    final version = ++_version;
+    notifyListeners();
+
+    Move? move;
+    try {
+      final solver = hintSolver;
+      move = solver != null
+          ? await solver(_tubes, _capacity)
+          : await compute(_solveHintTask, _HintRequest(_tubes, _capacity));
+    } catch (_) {
+      move = null;
+    }
+
+    if (version != _version) {
+      // Board changed while solving: drop the stale hint.
+      _hintLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    _hintLoading = false;
+    _hint = move;
+    notifyListeners();
+    return move != null;
   }
 
   Future<void> _persistInProgress() async {
@@ -190,3 +302,14 @@ class GameController extends ChangeNotifier {
     );
   }
 }
+
+class _HintRequest {
+  const _HintRequest(this.tubes, this.capacity);
+
+  final Tubes tubes;
+  final int capacity;
+}
+
+/// Top-level entry point for `compute`; must not capture any state.
+Move? _solveHintTask(_HintRequest request) =>
+    Solver.solve(request.tubes, request.capacity)?.first;

@@ -69,4 +69,19 @@ class ProgressController extends ChangeNotifier {
     await storage.save(_data);
     notifyListeners();
   }
+
+  /// Applies a settings change to the same `save_v1` blob and persists it.
+  Future<void> updateSettings(void Function(Settings settings) change) async {
+    change(_data.settings);
+    await storage.save(_data);
+    notifyListeners();
+  }
+
+  /// Wipes the save (used by Settings → Reset data): stars, unlocks, the
+  /// in-progress game and every option return to their defaults.
+  Future<void> resetAll() async {
+    await storage.clear();
+    _data = SaveData();
+    notifyListeners();
+  }
 }

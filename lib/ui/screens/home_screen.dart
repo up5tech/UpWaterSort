@@ -3,20 +3,35 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
 import '../../controllers/progress_controller.dart';
+import '../../controllers/settings_controller.dart';
+import '../../core/strings.dart';
 import 'game_screen.dart';
 import 'level_select_screen.dart';
+import 'settings_screen.dart';
 
 /// Landing screen: continue the saved game, pick a level, see total stars
-/// (PLAN.md §12.2). Settings arrives in Phase 5.
+/// (PLAN.md §12.2).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final progress = context.watch<ProgressController>();
+    final strings = stringsFor(context.watch<SettingsController>().locale);
     final hasLevels = progress.levelIds.isNotEmpty;
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text(strings.appName),
+        actions: [
+          IconButton(
+            tooltip: strings.settings,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () =>
+                Navigator.of(context).pushNamed(SettingsScreen.routeName),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -24,18 +39,13 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'UpWaterSort',
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-                const SizedBox(height: 12),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.star, color: Colors.amber),
                     const SizedBox(width: 6),
                     Text(
-                      '${progress.totalStars} stars',
+                      strings.stars(progress.totalStars),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ],
@@ -45,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                   width: 220,
                   child: FilledButton(
                     onPressed: hasLevels ? () => _continue(context) : null,
-                    child: const Text('Continue'),
+                    child: Text(strings.continueGame),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -57,7 +67,7 @@ class HomeScreen extends StatelessWidget {
                               Navigator.of(context)
                                   .pushNamed(LevelSelectScreen.routeName)
                         : null,
-                    child: const Text('Select level'),
+                    child: Text(strings.selectLevel),
                   ),
                 ),
               ],
