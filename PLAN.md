@@ -564,6 +564,8 @@ bool hasAnyMove(Tubes t, int capacity) => legalMoves(t, capacity).isNotEmpty;
 
 Suggested formula: `colors = min(3 + (level - 1) ~/ 6, 12)`, `empty = 2`, `capacity = 4`.
 
+Shipped set (2026-11-08): levels 1–120 use capacity 4; levels 121–150 use the capacity-5 tier with 12 colours (60 units, 14 tubes) so difficulty keeps climbing after level 120.
+
 ### 9.2 Level Delivery Strategy (recommended: **pre-generate with a script and bundle in assets**)
 
 **Why pre-generate?**
@@ -637,13 +639,13 @@ import 'dart:math';
 import 'package:up_water_sort/domain/level_generator.dart';
 
 void main(List<String> args) {
-  const totalLevels = 120;
+  const totalLevels = 150;
   final rng = Random(2024); // fixed seed → reproducible output
   final levels = <Map<String, dynamic>>[];
 
   for (var id = 1; id <= totalLevels; id++) {
-    final colors = min(3 + (id - 1) ~/ 6, 12);
-    const capacity = 4;
+    final colors = id <= 120 ? min(3 + (id - 1) ~/ 6, 12) : 12;
+    final capacity = id <= 120 ? 4 : 5;
     const empty = 2;
 
     final result = LevelGenerator.generate(

@@ -11,9 +11,10 @@ import 'package:up_water_sort/domain/models/level_data.dart';
 /// The seed is fixed at 2024 so the output is reproducible; never hand-edit
 /// `assets/levels/levels.json` or its `par` values.
 void main(List<String> args) {
-  // Full release set (decided 2026-11-08, AGENTS.md 10 item 4): 120 levels,
-  // capacity 4 throughout, colours 3 → 12 (PLAN.md 9.1, 9.4).
-  final totalLevels = args.isEmpty ? 120 : int.tryParse(args.first);
+  // Full release set (decided 2026-11-08, AGENTS.md 10 item 4): 150 levels.
+  // 1–120 ramp 3 → 12 colours at capacity 4; 121–150 keep 12 colours and move
+  // to capacity 5 (PLAN.md 9.1 `121+` tier) so difficulty keeps climbing.
+  final totalLevels = args.isEmpty ? 150 : int.tryParse(args.first);
   if (totalLevels == null || totalLevels < 1) {
     stderr.writeln('Usage: dart run tool/generate_levels.dart [levelCount]');
     exit(64);
@@ -23,8 +24,8 @@ void main(List<String> args) {
   final levels = <Map<String, dynamic>>[];
 
   for (var id = 1; id <= totalLevels; id++) {
-    final colors = min(3 + (id - 1) ~/ 6, 12);
-    const capacity = 4;
+    final colors = id <= 120 ? min(3 + (id - 1) ~/ 6, 12) : 12;
+    final capacity = id <= 120 ? 4 : 5;
     const empty = 2;
 
     final result = LevelGenerator.generate(
