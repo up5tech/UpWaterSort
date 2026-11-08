@@ -87,8 +87,8 @@ void main() {
     final harness = await TestHarness.create();
     addTearDown(harness.dispose);
 
-    expect(harness.progress.levelIds, hasLength(180));
+    expect(harness.progress.levelIds, hasLength(210));
     expect(harness.progress.levelIds.first, 1);
-    expect(harness.progress.levelIds.last, 180);
+    expect(harness.progress.levelIds.last, 210);
   });
 }

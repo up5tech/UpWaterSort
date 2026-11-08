@@ -8,11 +8,18 @@ void main() {
     final repository = LevelRepository();
     await repository.load();
 
-    expect(repository.count, 180);
+    expect(repository.count, 210);
     for (var i = 0; i < repository.levels.length; i++) {
       final level = repository.levels[i];
       expect(level.id, i + 1);
-      expect(level.capacity, level.id <= 120 ? 4 : 5);
+      expect(
+        level.capacity,
+        level.id <= 120
+            ? 4
+            : level.id <= 180
+            ? 5
+            : 6,
+      );
       expect(level.par, greaterThan(0));
       expect(level.tubes.length, greaterThan(level.colorCount));
     }

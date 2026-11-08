@@ -562,10 +562,11 @@ bool hasAnyMove(Tubes t, int capacity) => legalMoves(t, capacity).isNotEmpty;
 | 81–120 | 11–12 | 2 | 4 | 13–14 | |
 | 121–150 | 12 | 2 | 5 | 14 | Capacity 5 |
 | 151–180 | 13–16 | 2 | 5 | 15–18 | Capacity 5, four extra palette colours |
+| 181–210 | 13–16 | 2 | 6 | 15–18 | Capacity 6, same palette |
 
 Suggested formula: `colors = min(3 + (level - 1) ~/ 6, 12)`, `empty = 2`, `capacity = 4`.
 
-Shipped set (2026-11-08): levels 1–120 use capacity 4; levels 121–150 use the capacity-5 tier with 12 colours (60 units, 14 tubes); levels 151–180 keep capacity 5 and ramp colours 13→16 (15–18 tubes). Par rises from 5 (level 1) to 45–54 (121–150) and 51–74 (151–180), so difficulty keeps climbing.
+Shipped set (2026-11-08): levels 1–120 use capacity 4; levels 121–150 use the capacity-5 tier with 12 colours (60 units, 14 tubes); levels 151–180 keep capacity 5 and ramp colours 13→16 (15–18 tubes); levels 181–210 use capacity 6 with the same palette. Par rises from 5 (level 1) to 45–54 (121–150), 51–74 (151–180) and 63–90 (181–210), so difficulty keeps climbing without adding colours.
 
 ### 9.2 Level Delivery Strategy (recommended: **pre-generate with a script and bundle in assets**)
 
@@ -640,7 +641,7 @@ import 'dart:math';
 import 'package:up_water_sort/domain/level_generator.dart';
 
 void main(List<String> args) {
-  const totalLevels = 180;
+  const totalLevels = 210;
   final rng = Random(2024); // fixed seed → reproducible output
   final levels = <Map<String, dynamic>>[];
 
@@ -649,8 +650,14 @@ void main(List<String> args) {
         ? min(3 + (id - 1) ~/ 6, 12)
         : id <= 150
         ? 12
-        : min(13 + ((id - 151) * 4) ~/ 30, 16);
-    final capacity = id <= 120 ? 4 : 5;
+        : id <= 180
+        ? min(13 + ((id - 151) * 4) ~/ 30, 16)
+        : min(13 + ((id - 181) * 4) ~/ 30, 16);
+    final capacity = id <= 120
+        ? 4
+        : id <= 180
+        ? 5
+        : 6;
     const empty = 2;
 
     final result = LevelGenerator.generate(

@@ -92,4 +92,43 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(TubeWidget), findsNWidgets(18));
   });
+
+  testWidgets('fits an 18-tube capacity-6 board on a small phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final harness = await TestHarness.create();
+    addTearDown(harness.dispose);
+    harness.game.startLevel(
+      testLevel(
+        capacity: 6,
+        colorCount: 16,
+        tubes: [
+          for (var color = 0; color < 16; color++)
+            [for (var unit = 0; unit < 6; unit++) (color + unit) % 16],
+          <int>[],
+          <int>[],
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<GameController>.value(value: harness.game),
+          ChangeNotifierProvider<SettingsController>.value(
+            value: harness.settings,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: TubesBoard())),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TubeWidget), findsNWidgets(18));
+  });
 }
