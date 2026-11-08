@@ -40,27 +40,44 @@ class TubesBoard extends StatelessWidget {
     final tubeCount = game.tubes.length;
     if (tubeCount == 0) return const SizedBox.shrink();
 
-    final perRow = tubeCount <= 5 ? tubeCount : (tubeCount + 1) ~/ 2;
-    final rowCount = (tubeCount + perRow - 1) ~/ perRow;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final ratio = game.capacity * 0.9 + 0.6;
 
-        // Reserve headroom for the selected tube and keep the height budget
-        // honest so eight tubes still fit on a small phone.
-        final widthLimit =
-            ((constraints.maxWidth - _gap * (perRow - 1)) / perRow).clamp(
-              36.0,
-              64.0,
-            );
-        final liftRoom = widthLimit * 0.5;
-        final heightLimit = constraints.maxHeight.isFinite
-            ? (constraints.maxHeight - liftRoom - _rowGap * (rowCount - 1)) /
-                  rowCount /
-                  ratio
-            : widthLimit;
-        final tubeWidth = min(widthLimit, heightLimit).clamp(24.0, 64.0);
+        ({int perRow, int rowCount, double tubeWidth}) layout(int rowCount) {
+          final perRow = (tubeCount + rowCount - 1) ~/ rowCount;
+          // Reserve headroom for the selected tube and keep the height budget
+          // honest so the widest supported board still fits a small phone.
+          final widthLimit =
+              ((constraints.maxWidth - _gap * (perRow - 1)) / perRow).clamp(
+                36.0,
+                64.0,
+              );
+          final liftRoom = widthLimit * 0.5;
+          final heightLimit = constraints.maxHeight.isFinite
+              ? (constraints.maxHeight - liftRoom - _rowGap * (rowCount - 1)) /
+                    rowCount /
+                    ratio
+              : widthLimit;
+          return (
+            perRow: perRow,
+            rowCount: rowCount,
+            tubeWidth: min(widthLimit, heightLimit).clamp(24.0, 64.0),
+          );
+        }
+
+        // Two rows for most boards; the 17–18 tube boards are wider than two
+        // phone rows can hold, so use three rows when that keeps tubes bigger.
+        final baseRows = tubeCount <= 5 ? 1 : 2;
+        var chosen = layout(baseRows);
+        if (baseRows == 2) {
+          final threeRows = layout(3);
+          if (threeRows.tubeWidth > chosen.tubeWidth) chosen = threeRows;
+        }
+
+        final perRow = chosen.perRow;
+        final rowCount = chosen.rowCount;
+        final tubeWidth = chosen.tubeWidth;
         final tubeHeight = tubeWidth * ratio;
         final lift = tubeWidth * 0.5;
 

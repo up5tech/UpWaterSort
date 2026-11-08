@@ -14,6 +14,10 @@ const List<Color> kPalette = [
   Color(0xFF7CB342), // 9 lime
   Color(0xFF546E7A), // 10 blue-gray
   Color(0xFFF48FB1), // 11 light pink
+  Color(0xFF3F51B5), // 12 indigo
+  Color(0xFFD84315), // 13 deep orange
+  Color(0xFF212121), // 14 charcoal
+  Color(0xFF9E9E9E), // 15 grey
 ];
 
 /// Symbols drawn on liquid layers in color-blind mode (PLAN.md §12.4).
@@ -30,4 +34,8 @@ const List<String> kSymbols = [
   '☀',
   '✖',
   '⬟',
+  '⬢',
+  '◉',
+  '▣',
+  '✱',
 ];

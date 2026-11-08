@@ -98,8 +98,8 @@ void main() {
     final decoded = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     expect(decoded['version'], 1);
     final rawLevels = decoded['levels'] as List;
-    // Release set decided 2026-11-08 (AGENTS.md 10, item 4): 150 levels.
-    expect(rawLevels.length, 150);
+    // Release set decided 2026-11-08 (AGENTS.md 10, item 4): 180 levels.
+    expect(rawLevels.length, 180);
     expect(rawLevels, isNotEmpty);
 
     for (var i = 0; i < rawLevels.length; i++) {
@@ -109,7 +109,13 @@ void main() {
       expect(level.id, i + 1, reason: 'level ids must be sequential');
       // 121+ is the capacity-5 tier (PLAN.md 9.1).
       expect(level.capacity, level.id <= 120 ? 4 : 5);
-      expect(level.colorCount, level.id <= 120 ? lessThanOrEqualTo(12) : 12);
+      if (level.id <= 120) {
+        expect(level.colorCount, lessThanOrEqualTo(12));
+      } else if (level.id <= 150) {
+        expect(level.colorCount, 12);
+      } else {
+        expect(level.colorCount, inInclusiveRange(13, 16));
+      }
 
       final units = <int, int>{};
       for (final tube in level.tubes) {

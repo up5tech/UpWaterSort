@@ -15,9 +15,10 @@ LevelData testLevel({
   required List<List<int>> tubes,
   int par = 5,
   int colorCount = 2,
+  int capacity = 4,
 }) => LevelData(
   id: id,
-  capacity: 4,
+  capacity: capacity,
   colorCount: colorCount,
   tubes: tubes,
   par: par,
