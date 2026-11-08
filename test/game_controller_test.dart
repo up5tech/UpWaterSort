@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:up_water_sort/controllers/game_controller.dart';
 
@@ -222,6 +224,36 @@ void main() {
     expect(saved!.levelId, 1);
     expect(saved.tubes, game.tubes);
     expect(saved.history, hasLength(1));
+  });
+
+  test('ignores taps while the pour animation is running', () async {
+    game.startLevel(
+      testLevel(
+        tubes: [
+          [0, 1, 1],
+          [1],
+          [],
+          [],
+        ],
+      ),
+    );
+    final gate = Completer<void>();
+    game.playPourAnimation = (move, before) => gate.future;
+
+    await game.onTubeTap(0);
+    final pour = game.onTubeTap(1);
+    expect(game.busy, isTrue);
+    expect(game.moves, 0);
+
+    await game.onTubeTap(0);
+    expect(game.moves, 0);
+    expect(game.selected, isNull);
+
+    gate.complete();
+    await pour;
+
+    expect(game.moves, 1);
+    expect(game.busy, isFalse);
   });
 
   test('undo persists the restored history', () async {

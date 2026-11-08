@@ -37,9 +37,9 @@ void main() {
       await tester.tap(find.byType(TubeWidget).at(move.from));
       await tester.pump();
       await tester.tap(find.byType(TubeWidget).at(move.to));
-      await tester.pump();
+      // The move is committed only after the pour animation finishes.
+      await tester.pumpAndSettle();
     }
-    await tester.pumpAndSettle();
 
     expect(harness.game.status, GameStatus.won);
     expect(find.text('Level 1 complete!'), findsOneWidget);
@@ -58,6 +58,62 @@ void main() {
     expect(harness.progress.data.inProgress!.levelId, 2);
   });
 
+  testWidgets('input stays locked until the pour animation commits', (
+    tester,
+  ) async {
+    final harness = await TestHarness.create();
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(_app(harness));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    final level = harness.levels.byId(1)!;
+    final move = Solver.solve(level.tubes, level.capacity)!.first;
+    await tester.tap(find.byType(TubeWidget).at(move.from));
+    await tester.pump();
+    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.game.busy, isTrue);
+    expect(harness.game.moves, 0);
+
+    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.pump();
+    expect(harness.game.moves, 0);
+    expect(harness.game.selected, isNull);
+
+    await tester.pumpAndSettle();
+    expect(harness.game.moves, 1);
+    expect(harness.game.busy, isFalse);
+  });
+
+  testWidgets('backgrounding mid-animation commits the move', (tester) async {
+    final harness = await TestHarness.create();
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(_app(harness));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    final level = harness.levels.byId(1)!;
+    final move = Solver.solve(level.tubes, level.capacity)!.first;
+    await tester.tap(find.byType(TubeWidget).at(move.from));
+    await tester.pump();
+    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(harness.game.moves, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    expect(harness.game.moves, 1);
+    expect(harness.game.busy, isFalse);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a relaunch resumes the in-progress game from Home', (
     tester,
   ) async {
@@ -73,7 +129,7 @@ void main() {
     await tester.tap(find.byType(TubeWidget).at(move.from));
     await tester.pump();
     await tester.tap(find.byType(TubeWidget).at(move.to));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     final movedTubes = [
       for (final tube in harness.game.tubes) List<int>.of(tube),

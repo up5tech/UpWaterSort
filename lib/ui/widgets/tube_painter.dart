@@ -4,6 +4,9 @@ import '../../core/palette.dart';
 
 /// Draws one tube: glass background, liquid layers (bottom -> top), optional
 /// color-blind symbols and an outline that reflects selection/completion.
+///
+/// [topLayerFraction] and [extraLayer*] let the pour animation show liquid
+/// levels that are mid-way between two whole units.
 class TubePainter extends CustomPainter {
   const TubePainter({
     required this.layers,
@@ -11,6 +14,9 @@ class TubePainter extends CustomPainter {
     required this.selected,
     required this.colorBlind,
     required this.complete,
+    this.topLayerFraction = 1,
+    this.extraLayerColor,
+    this.extraLayerFraction = 0,
   });
 
   final List<int> layers;
@@ -18,6 +24,15 @@ class TubePainter extends CustomPainter {
   final bool selected;
   final bool colorBlind;
   final bool complete;
+
+  /// Visible part of the top layer, 0..1 (1 = whole layer).
+  final double topLayerFraction;
+
+  /// A partially poured layer above [layers], drawn with this palette color.
+  final int? extraLayerColor;
+
+  /// Height of [extraLayerColor] as a fraction of one layer, 0..1.
+  final double extraLayerFraction;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -51,17 +66,22 @@ class TubePainter extends CustomPainter {
     final layerHeight = (h - usableTop) / capacity;
 
     for (var i = 0; i < layers.length; i++) {
-      final top = h - (i + 1) * layerHeight;
-      final rect = Rect.fromLTWH(0, top, w, layerHeight + 0.5);
+      final isTop = i == layers.length - 1;
+      final fraction = isTop ? topLayerFraction.clamp(0.0, 1.0) : 1.0;
+      if (fraction <= 0) continue;
+
+      final bottom = h - i * layerHeight;
+      final top = bottom - layerHeight * fraction;
+      final rect = Rect.fromLTWH(0, top, w, layerHeight * fraction + 0.5);
       canvas.drawRect(rect, Paint()..color = kPalette[layers[i]]);
 
-      if (colorBlind) {
+      if (colorBlind && fraction > 0.35) {
         final textPainter = TextPainter(
           text: TextSpan(
             text: kSymbols[layers[i]],
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.9),
-              fontSize: layerHeight * 0.55,
+              fontSize: layerHeight * fraction * 0.55,
             ),
           ),
           textDirection: TextDirection.ltr,
@@ -70,11 +90,24 @@ class TubePainter extends CustomPainter {
           canvas,
           Offset(
             (w - textPainter.width) / 2,
-            top + (layerHeight - textPainter.height) / 2,
+            top + (layerHeight * fraction - textPainter.height) / 2,
           ),
         );
         textPainter.dispose();
       }
+    }
+
+    final extraColor = extraLayerColor;
+    final extraFraction = extraLayerFraction.clamp(0.0, 1.0);
+    if (extraColor != null && extraFraction > 0) {
+      final baseTop = h - layers.length * layerHeight;
+      final rect = Rect.fromLTWH(
+        0,
+        baseTop - layerHeight * extraFraction,
+        w,
+        layerHeight * extraFraction + 0.5,
+      );
+      canvas.drawRect(rect, Paint()..color = kPalette[extraColor]);
     }
 
     // Highlight streak on the left for a glassy look.
@@ -101,6 +134,9 @@ class TubePainter extends CustomPainter {
       oldDelegate.capacity != capacity ||
       oldDelegate.colorBlind != colorBlind ||
       oldDelegate.complete != complete ||
+      oldDelegate.topLayerFraction != topLayerFraction ||
+      oldDelegate.extraLayerColor != extraLayerColor ||
+      oldDelegate.extraLayerFraction != extraLayerFraction ||
       !_sameLayers(oldDelegate.layers, layers);
 
   static bool _sameLayers(List<int> a, List<int> b) {

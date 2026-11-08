@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
+import '../animation/pour_animator.dart';
+import '../animation/win_confetti.dart';
 import '../widgets/game_toolbar.dart';
 import '../widgets/tubes_board.dart';
 import '../widgets/win_dialog.dart';
 
-/// The playable screen: tube board + toolbar. Phase 2 commits every move
-/// instantly; pouring animation arrives in Phase 4.
+/// The playable screen: tube board + toolbar. Moves are committed by
+/// `GameController` only after the pour animation ends (PLAN.md §14).
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
 
@@ -19,9 +21,22 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
+  final BoardGeometry _geometry = BoardGeometry();
+  late final PourAnimator _animator = PourAnimator(
+    vsync: this,
+    geometry: _geometry,
+  );
+
   GameController? _game;
   bool _winDialogOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -31,11 +46,25 @@ class _GameScreenState extends State<GameScreen> {
       _game?.removeListener(_handleGameChanged);
       _game = game..addListener(_handleGameChanged);
     }
+    game.playPourAnimation = _animator.play;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Backgrounded mid-animation: finish it and commit the move immediately
+    // (PLAN.md §18 item 13).
+    if (state != AppLifecycleState.resumed) {
+      _animator.finishNow();
+    }
   }
 
   @override
   void dispose() {
-    _game?.removeListener(_handleGameChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    _game
+      ?..removeListener(_handleGameChanged)
+      ..playPourAnimation = null;
+    _animator.dispose();
     super.dispose();
   }
 
@@ -96,11 +125,22 @@ class _GameScreenState extends State<GameScreen> {
       ),
       body: SafeArea(
         child: game.isStarted
-            ? Column(
+            ? Stack(
                 children: [
-                  const Expanded(child: TubesBoard()),
-                  if (game.status == GameStatus.stuck) const _StuckBanner(),
-                  const GameToolbar(),
+                  Column(
+                    children: [
+                      Expanded(
+                        child: TubesBoard(
+                          animator: _animator,
+                          geometry: _geometry,
+                        ),
+                      ),
+                      if (game.status == GameStatus.stuck) const _StuckBanner(),
+                      const GameToolbar(),
+                    ],
+                  ),
+                  if (game.status == GameStatus.won)
+                    const Positioned.fill(child: WinConfetti()),
                 ],
               )
             : const Center(child: Text('No levels available.')),
