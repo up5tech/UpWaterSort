@@ -12,6 +12,57 @@ Color tubeOutlineColor(Brightness brightness, ColorScheme scheme) =>
 Color tubeSelectedOutlineColor(Brightness brightness, ColorScheme scheme) =>
     brightness == Brightness.dark ? Colors.white : scheme.primary;
 
+/// Soft drop shadow under a tube, so the vessel reads as a solid object
+/// standing on the board instead of a shape painted onto it.
+///
+/// Every length is a fraction of the tube width, so the shadow scales with the
+/// board. The two presets differ because the cue that separates a tube from the
+/// board flips with the board's brightness: on a pale board a faint black halo
+/// reads as depth, while on the dark theme's almost-black board black on black
+/// is invisible, so the tube is separated by a soft halo of light instead.
+class TubeShadow {
+  const TubeShadow({
+    required this.color,
+    required this.dx,
+    required this.dy,
+    required this.blur,
+  });
+
+  /// Shadow for the light theme: a tight, low-contrast contact shadow that
+  /// falls down and slightly right, as if the light came from the top left.
+  static const TubeShadow light = TubeShadow(
+    color: Color(0x52000000),
+    dx: 0.03,
+    dy: 0.07,
+    blur: 0.065,
+  );
+
+  /// Shadow for the dark theme: black would vanish into the near-black board,
+  /// so this preset is a wide, low-alpha white halo. It reads as ambient light
+  /// around the vessel, which lifts it off the board the same way a shadow
+  /// does on the light theme.
+  static const TubeShadow dark = TubeShadow(
+    color: Color(0x24FFFFFF),
+    dx: 0.02,
+    dy: 0.045,
+    blur: 0.09,
+  );
+
+  final Color color;
+
+  /// Horizontal throw, as a fraction of the tube width.
+  final double dx;
+
+  /// How far the shadow is pushed down, as a fraction of the tube width.
+  final double dy;
+
+  /// Blur sigma, as a fraction of the tube width.
+  final double blur;
+
+  static TubeShadow forBrightness(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
+}
+
 /// Draws one tube: liquid layers (bottom -> top), optional color-blind symbols
 /// and an outline that reflects selection/completion. The tube body is filled
 /// with [bodyColor] (the screen background) instead of staying clear, so a tube
@@ -29,6 +80,7 @@ class TubePainter extends CustomPainter {
     this.outlineColor = Colors.white70,
     this.selectedOutlineColor = Colors.white,
     this.bodyColor = Colors.white,
+    this.shadow,
     this.hinted = false,
     this.topLayerFraction = 1,
     this.extraLayerColor,
@@ -50,6 +102,10 @@ class TubePainter extends CustomPainter {
   /// Opaque fill of the tube interior; the screen's background colour, so a
   /// selected tube covering a neighbour reads as one solid object.
   final Color bodyColor;
+
+  /// Soft drop shadow cast behind the tube. `null` means no shadow, which is
+  /// what the flying copy during a pour uses so it never smears the board.
+  final TubeShadow? shadow;
 
   /// Highlighted by the current hint (source or destination).
   final bool hinted;
@@ -88,6 +144,20 @@ class TubePainter extends CustomPainter {
       width: w,
       height: rimRy * 2,
     );
+
+    // Soft shadow under the vessel: a blurred copy of the tube shape pushed a
+    // little down, so the tube reads as standing on the board rather than being
+    // painted flat onto it. Drawn before the opaque body, so only the halo that
+    // falls outside the glass stays visible.
+    final shadow = this.shadow;
+    if (shadow != null) {
+      canvas.drawPath(
+        glassPath.shift(Offset(w * shadow.dx, w * shadow.dy)),
+        Paint()
+          ..color = shadow.color
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * shadow.blur),
+      );
+    }
 
     // Opaque body first: without it the empty head-space of a tube lets the
     // liquid of the tube behind show through.
@@ -218,6 +288,7 @@ class TubePainter extends CustomPainter {
       oldDelegate.outlineColor != outlineColor ||
       oldDelegate.selectedOutlineColor != selectedOutlineColor ||
       oldDelegate.bodyColor != bodyColor ||
+      oldDelegate.shadow != shadow ||
       oldDelegate.hinted != hinted ||
       oldDelegate.topLayerFraction != topLayerFraction ||
       oldDelegate.extraLayerColor != extraLayerColor ||

@@ -6,7 +6,7 @@ import 'tube_painter.dart';
 /// dispatched by the board.
 ///
 /// The tube fills its body with the screen background (so it occludes the tubes
-/// behind it) and draws no shadow (PLAN.md §12.3).
+/// behind it) and casts a soft shadow to separate it from the board.
 class TubeWidget extends StatelessWidget {
   const TubeWidget({
     super.key,
@@ -65,6 +65,7 @@ class TubeWidget extends StatelessWidget {
       theme.brightness,
       theme.colorScheme,
     );
+    final shadow = TubeShadow.forBrightness(theme.brightness);
 
     return RepaintBoundary(
       child: AnimatedContainer(
@@ -91,6 +92,7 @@ class TubeWidget extends StatelessWidget {
                   outlineColor: outline,
                   selectedOutlineColor: selectedOutline,
                   bodyColor: theme.scaffoldBackgroundColor,
+                  shadow: shadow,
                   hinted: hinted,
                   topLayerFraction: topLayerFraction,
                   extraLayerColor: extraLayerColor,
