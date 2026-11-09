@@ -11,11 +11,16 @@ import 'solver.dart';
 /// solution's length.
 class LevelGenerator {
   /// Returns `(tubes, par)` or `null` if all attempts fail.
+  ///
+  /// [minPar] rejects puzzles whose shortest solution is shorter than the
+  /// given value; the offline tool uses it to keep the bundled `par` curve
+  /// non-decreasing. A rejected candidate still costs one attempt.
   static ({Tubes tubes, int par})? generate({
     required int colors,
     required int capacity,
     required int emptyTubes,
     required Random rng,
+    int minPar = 0,
     int maxAttempts = 200,
     int solverNodeLimit = 300000,
   }) {
@@ -34,7 +39,7 @@ class LevelGenerator {
       if (tubes.any((t) => isTubeComplete(t, capacity))) continue;
 
       final solution = Solver.solve(tubes, capacity, maxNodes: solverNodeLimit);
-      if (solution != null) {
+      if (solution != null && solution.length >= minPar) {
         return (tubes: tubes, par: solution.length);
       }
     }

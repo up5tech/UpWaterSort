@@ -566,7 +566,7 @@ bool hasAnyMove(Tubes t, int capacity) => legalMoves(t, capacity).isNotEmpty;
 
 Suggested formula: `colors = min(3 + (level - 1) ~/ 6, 12)`, `empty = 2`, `capacity = 4`.
 
-Shipped set (2026-11-08): levels 1–120 use capacity 4; levels 121–150 use the capacity-5 tier with 12 colours (60 units, 14 tubes); levels 151–180 keep capacity 5 and ramp colours 13→16 (15–18 tubes); levels 181–210 use capacity 6 with the same palette, ramping colours 14→16 (16–18 tubes). Par rises from 5 (level 1) to 45–54 (121–150), 51–74 (151–180) and 67–89 (181–210), so difficulty keeps climbing without adding colours.
+Shipped set (2026-11-08): levels 1–120 use capacity 4; levels 121–150 use the capacity-5 tier with 12 colours (60 units, 14 tubes); levels 151–180 keep capacity 5 and ramp colours 13→16 (15–18 tubes); levels 181–210 use capacity 6 with the same palette, ramping colours 14→16 (16–18 tubes). Par rises from 5 (level 1) to 42 (120), 44–53 (121–150), 53–71 (151–180) and 71–87 (181–210), so difficulty keeps climbing without adding colours. Because every level in a tier costs the same to play, `par` is **non-decreasing across the whole 210-level set**: the script sorts each same-configuration block by `par` and floors the next block at the previous block's highest `par` (see §9.4), so no level ever asks for fewer moves than the one before it.
 
 ### 9.2 Level Delivery Strategy (recommended: **pre-generate with a script and bundle in assets**)
 
@@ -596,11 +596,13 @@ import 'models/move.dart';
 
 class LevelGenerator {
   /// Returns (tubes, par) or null if all attempts fail.
+  /// [minPar] rejects puzzles shorter than the given par.
   static ({Tubes tubes, int par})? generate({
     required int colors,
     required int capacity,
     required int emptyTubes,
     required Random rng,
+    int minPar = 0,
     int maxAttempts = 200,
     int solverNodeLimit = 300000,
   }) {
@@ -619,7 +621,7 @@ class LevelGenerator {
       if (tubes.any((t) => isTubeComplete(t, capacity))) continue;
 
       final solution = Solver.solve(tubes, capacity, maxNodes: solverNodeLimit);
-      if (solution != null) {
+      if (solution != null && solution.length >= minPar) {
         return (tubes: tubes, par: solution.length);
       }
     }
@@ -644,40 +646,51 @@ void main(List<String> args) {
   const totalLevels = 210;
   final rng = Random(2024); // fixed seed → reproducible output
   final levels = <Map<String, dynamic>>[];
+  var floor = 0; // par must never drop below this
+  var id = 1;
 
-  for (var id = 1; id <= totalLevels; id++) {
-    final colors = id <= 120
-        ? min(3 + (id - 1) ~/ 6, 12)
-        : id <= 150
-        ? 12
-        : id <= 180
-        ? min(13 + ((id - 151) * 4) ~/ 30, 16)
-        : min(14 + ((id - 181) * 3) ~/ 30, 16);
-    final capacity = id <= 120
-        ? 4
-        : id <= 180
-        ? 5
-        : 6;
-    const empty = 2;
-
-    final result = LevelGenerator.generate(
-      colors: colors,
-      capacity: capacity,
-      emptyTubes: empty,
-      rng: rng,
-    );
-    if (result == null) {
-      stderr.writeln('Could not generate level $id, try raising maxAttempts.');
-      exit(1);
+  while (id <= totalLevels) {
+    final colors = _colorsFor(id);
+    final capacity = _capacityFor(id);
+    // Block = consecutive levels with the same colours and capacity.
+    var lastId = id;
+    while (lastId < totalLevels &&
+        _colorsFor(lastId + 1) == colors &&
+        _capacityFor(lastId + 1) == capacity) {
+      lastId++;
     }
-    levels.add({
-      'id': id,
-      'capacity': capacity,
-      'colors': colors,
-      'tubes': result.tubes,
-      'par': result.par,
-    });
-    stdout.writeln('Level $id OK (colors=$colors, par=${result.par})');
+
+    final block = <({Tubes tubes, int par})>[];
+    while (block.length < lastId - id + 1) {
+      final result = LevelGenerator.generate(
+        colors: colors,
+        capacity: capacity,
+        emptyTubes: 2,
+        rng: rng,
+        minPar: floor,
+      );
+      if (result == null) {
+        stderr.writeln('No level for id $id with par >= $floor');
+        exit(1);
+      }
+      block.add(result);
+    }
+
+    // Every puzzle in a block is equally hard to configure, so sorting by par
+    // makes the curve climb inside the block instead of zig-zagging.
+    block.sort((a, b) => a.par.compareTo(b.par));
+    for (final result in block) {
+      levels.add({
+        'id': id,
+        'capacity': capacity,
+        'colors': colors,
+        'tubes': result.tubes,
+        'par': result.par,
+      });
+      stdout.writeln('Level $id OK (colors=$colors, par=${result.par})');
+      floor = result.par;
+      id++;
+    }
   }
 
   File('assets/levels/levels.json').writeAsStringSync(
@@ -685,6 +698,8 @@ void main(List<String> args) {
   );
 }
 ```
+
+> The real script also breaks `par` ties deterministically (compare tube contents), so the JSON stays reproducible even when several puzzles have the same `par`.
 
 > The script imports `package:up_water_sort/...`, so the **domain layer must not import Flutter**, otherwise `dart run` will fail.
 

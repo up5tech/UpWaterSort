@@ -102,6 +102,10 @@ void main() {
     expect(rawLevels.length, 210);
     expect(rawLevels, isNotEmpty);
 
+    // PAR must never drop below the previous level (tool/generate_levels.dart
+    // sorts each same-configuration block and floors the next block).
+    var previousPar = 0;
+
     for (var i = 0; i < rawLevels.length; i++) {
       final level = LevelData.fromJson(
         Map<String, dynamic>.from(rawLevels[i] as Map),
@@ -155,6 +159,12 @@ void main() {
         solution!.length,
         reason: 'level ${level.id} par must equal the shortest solution',
       );
+      expect(
+        level.par,
+        greaterThanOrEqualTo(previousPar),
+        reason: 'level ${level.id} par must not drop below the previous level',
+      );
+      previousPar = level.par;
 
       var state = level.tubes;
       for (final m in solution) {
