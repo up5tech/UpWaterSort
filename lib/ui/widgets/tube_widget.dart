@@ -65,6 +65,7 @@ class TubeWidget extends StatelessWidget {
       theme.brightness,
       theme.colorScheme,
     );
+    final glow = tubeGlowColor(theme.brightness, theme.colorScheme);
     final shadow = TubeShadow.forBrightness(theme.brightness);
 
     return RepaintBoundary(
@@ -91,7 +92,7 @@ class TubeWidget extends StatelessWidget {
                   complete: complete,
                   outlineColor: outline,
                   selectedOutlineColor: selectedOutline,
-                  bodyColor: theme.scaffoldBackgroundColor,
+                  glowColor: glow,
                   shadow: shadow,
                   hinted: hinted,
                   topLayerFraction: topLayerFraction,

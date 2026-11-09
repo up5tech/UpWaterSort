@@ -238,7 +238,10 @@ class TubesBoard extends StatelessWidget {
                       Theme.of(context).brightness,
                       Theme.of(context).colorScheme,
                     ),
-                    bodyColor: Theme.of(context).scaffoldBackgroundColor,
+                    glowColor: tubeGlowColor(
+                      Theme.of(context).brightness,
+                      Theme.of(context).colorScheme,
+                    ),
                     topLayerFraction: animation.flyingTopFraction,
                   ),
                 ),
