@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/game_controller.dart';
+import '../../controllers/progress_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../core/strings.dart';
 import '../animation/pour_animator.dart';
@@ -103,6 +104,7 @@ class _GameScreenState extends State<GameScreen>
         levelNumber: level.id,
         moves: game.moves,
         par: level.par,
+        stars: starsFor(game.moves, level.par),
         canContinue: game.hasNextLevel,
       ),
     );

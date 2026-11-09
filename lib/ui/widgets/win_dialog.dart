@@ -14,12 +14,14 @@ class WinDialog extends StatelessWidget {
     required this.levelNumber,
     required this.moves,
     required this.par,
+    required this.stars,
     required this.canContinue,
   });
 
   final int levelNumber;
   final int moves;
   final int par;
+  final int stars;
   final bool canContinue;
 
   @override
@@ -34,7 +36,14 @@ class WinDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(child: _StarRow(stars: stars)),
+            const SizedBox(height: 12),
             Text(strings.winStats(moves, par)),
+            const SizedBox(height: 4),
+            Text(
+              strings.stars(stars),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             if (!canContinue)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -59,6 +68,34 @@ class WinDialog extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Renders three star icons, the first [stars] of them filled in.
+class _StarRow extends StatelessWidget {
+  const _StarRow({required this.stars});
+
+  final int stars;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(
+              i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+              size: 40,
+              color: i < stars
+                  ? Colors.amberAccent
+                  : scheme.onSurface.withValues(alpha: 0.3),
+            ),
+          ),
+      ],
     );
   }
 }
