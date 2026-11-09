@@ -116,8 +116,6 @@ class _GameScreenState extends State<GameScreen>
       game.addExtraTube();
     } else if (action == StuckDialogAction.restart) {
       game.restart();
-    } else if (action == StuckDialogAction.menu) {
-      Navigator.of(context).pop();
     } else {
       _dialogOpen = false;
     }

@@ -64,6 +64,23 @@ void main() {
       find.text('No moves left. Undo, add a tube or restart.'),
       findsNothing,
     );
+    // Only the three recovery actions: Menu lives on the AppBar back button.
+    expect(
+      find.descendant(
+        of: find.byType(StuckDialog),
+        matching: find.text('Menu'),
+      ),
+      findsNothing,
+    );
+    expect(_dialogButton('Undo'), findsOneWidget);
+    expect(_dialogButton('Add tube'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(StuckDialog),
+        matching: find.widgetWithText(FilledButton, 'Restart'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Undo from the popup returns to play', (tester) async {

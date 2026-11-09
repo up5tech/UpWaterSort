@@ -5,10 +5,11 @@ import '../../controllers/settings_controller.dart';
 import '../../core/strings.dart';
 
 /// What the player chose in the stuck dialog (PLAN.md §2.4).
-enum StuckDialogAction { undo, addTube, restart, menu }
+enum StuckDialogAction { undo, addTube, restart }
 
-/// Shown when no legal move remains: the player must undo, add an extra tube,
-/// restart or leave the level.
+/// Shown when no legal move remains: the player must undo, add an extra tube
+/// or restart. Leaving the level is handled by the AppBar back button once the
+/// dialog is resolved.
 class StuckDialog extends StatelessWidget {
   const StuckDialog({
     super.key,
@@ -43,10 +44,6 @@ class StuckDialog extends StatelessWidget {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(StuckDialogAction.menu),
-            child: Text(strings.menu),
-          ),
           TextButton(
             onPressed: canUndo
                 ? () => Navigator.of(context).pop(StuckDialogAction.undo)
