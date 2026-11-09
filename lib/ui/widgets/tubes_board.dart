@@ -217,7 +217,7 @@ class TubesBoard extends StatelessWidget {
                   impact: animation.streamImpact(capacity),
                   color: kPalette[pourColor],
                   opacity: animation.streamOpacity,
-                  width: animation.flyingRect.width * 0.3,
+                  width: animation.flyingRect.width * 0.2,
                   progress: animation.pourFraction,
                 ),
               ),
@@ -298,12 +298,16 @@ class _StreamPainter extends CustomPainter {
     for (var i = 0; i <= _steps; i++) {
       final u = i / _steps;
       final point = _cubic(origin, c1, c2, impact, u);
-      // A small wobble travelling down the stream keeps it from looking drawn.
-      final wobble = sin(u * 5.2 - progress * 9) * width * 0.1 * u;
+      // A thin, winding ribbon: a higher-frequency sine travelling down the
+      // stream makes several gentle bends ("uốn lượn") instead of a stiff
+      // stripe. The larger amplitude (relative to the now-thinner width) keeps
+      // the meander clearly visible.
+      final wobble = sin(u * 7.0 - progress * 6.5) * width * 0.6 * u;
       centers.add(Offset(point.dx + wobble, point.dy));
       // Narrow at the lip, full just below it, then necking in as it falls —
       // a constant-width bar reads as a painted stripe rather than water.
-      final profile = 0.7 + 0.36 * sin(u * pi * 0.85);
+      // Kept slimmer overall so the stream stays a thin thread of water.
+      final profile = 0.55 + 0.28 * sin(u * pi * 0.85);
       halves.add(width * profile / 2);
     }
 

@@ -20,14 +20,14 @@ class BoardGeometry {
 /// flying tube drawn by `TubesBoard`.
 class PourAnimator extends ChangeNotifier {
   PourAnimator({required TickerProvider vsync, required this.geometry})
-    : _controller = AnimationController(
+    :     _controller = AnimationController(
         vsync: vsync,
-        duration: const Duration(milliseconds: 900),
+        duration: const Duration(milliseconds: 1500),
       ) {
     _controller.addListener(_handleTick);
   }
 
-  static const Duration duration = Duration(milliseconds: 900);
+  static const Duration duration = Duration(milliseconds: 1500);
 
   final BoardGeometry geometry;
   final AnimationController _controller;
@@ -50,20 +50,23 @@ class PourAnimator extends ChangeNotifier {
 
   double get _t => _controller.value;
 
-  /// 0 → 1 while the source tube travels above the target.
+  /// 0 → 1 while the source tube travels above the target. A gentle
+  /// sine easing makes the glide feel soft rather than mechanical.
   double get travelT =>
-      const Interval(0, 0.28, curve: Curves.easeInOut).transform(_t);
+      const Interval(0, 0.28, curve: Curves.easeInOutSine).transform(_t);
 
-  /// 0 → 1 while the tube tilts.
+  /// 0 → 1 while the tube tilts. Smooth sine easing keeps the turn graceful.
   double get tiltT =>
-      const Interval(0.28, 0.5, curve: Curves.easeInOut).transform(_t);
+      const Interval(0.28, 0.5, curve: Curves.easeInOutSine).transform(_t);
 
-  /// 0 → 1 while liquid is poured; linear so the levels move evenly.
-  double get pourT => const Interval(0.5, 0.8).transform(_t);
+  /// 0 → 1 while liquid is poured. A soft ease-in-out (instead of linear)
+  /// lets the stream start and settle gently, so the rising level flows.
+  double get pourT =>
+      const Interval(0.5, 0.82, curve: Curves.easeInOutSine).transform(_t);
 
   /// 0 → 1 while the tube tilts back and returns to its slot.
   double get returnT =>
-      const Interval(0.8, 1, curve: Curves.easeInOut).transform(_t);
+      const Interval(0.82, 1, curve: Curves.easeInOutSine).transform(_t);
 
   double get pourFraction => pourT;
 
