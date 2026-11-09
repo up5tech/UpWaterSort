@@ -28,7 +28,8 @@ abstract class AppStrings {
   String get hint;
   String get addTube;
   String get noLevels;
-  String get noMovesLeft;
+  String get stuckTitle;
+  String get stuckBody;
   String get hintUnavailable;
   String get allLevelsDone;
   String get menu;
@@ -94,7 +95,10 @@ class _StringsEn extends AppStrings {
   @override
   String get noLevels => 'No levels available.';
   @override
-  String get noMovesLeft => 'No moves left. Undo, add a tube or restart.';
+  String get stuckTitle => 'No moves left';
+  @override
+  String get stuckBody =>
+      'Undo a move, add an extra tube, or restart this level.';
   @override
   String get hintUnavailable => 'No hint found, try Undo.';
   @override
@@ -169,8 +173,9 @@ class _StringsVi extends AppStrings {
   @override
   String get noLevels => 'Không có màn chơi.';
   @override
-  String get noMovesLeft =>
-      'Hết nước đi. Hãy hoàn tác, thêm ống hoặc chơi lại.';
+  String get stuckTitle => 'Hết nước đi';
+  @override
+  String get stuckBody => 'Hoàn tác, thêm ống hoặc chơi lại màn này.';
   @override
   String get hintUnavailable => 'Không tìm thấy gợi ý, thử hoàn tác.';
   @override

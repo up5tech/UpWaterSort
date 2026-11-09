@@ -10,6 +10,7 @@ import '../../core/strings.dart';
 import '../animation/pour_animator.dart';
 import '../animation/win_confetti.dart';
 import '../widgets/game_toolbar.dart';
+import '../widgets/stuck_dialog.dart';
 import '../widgets/tubes_board.dart';
 import '../widgets/win_dialog.dart';
 
@@ -33,7 +34,7 @@ class _GameScreenState extends State<GameScreen>
   );
 
   GameController? _game;
-  bool _winDialogOpen = false;
+  bool _dialogOpen = false;
 
   @override
   void initState() {
@@ -78,22 +79,54 @@ class _GameScreenState extends State<GameScreen>
     final game = _game;
     if (game == null) return;
     if (game.status == GameStatus.playing) {
-      _winDialogOpen = false;
+      _dialogOpen = false;
       return;
     }
-    if (game.status != GameStatus.won || _winDialogOpen) return;
+    if (_dialogOpen) return;
 
-    _winDialogOpen = true;
+    _dialogOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_openWinDialog(game));
+      if (game.status == GameStatus.playing) {
+        _dialogOpen = false;
+        return;
+      }
+      unawaited(
+        game.status == GameStatus.won
+            ? _openWinDialog(game)
+            : _openStuckDialog(game),
+      );
     });
+  }
+
+  Future<void> _openStuckDialog(GameController game) async {
+    final action = await showDialog<StuckDialogAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StuckDialog(
+        canUndo: game.canUndo,
+        canAddExtraTube: game.canAddExtraTube,
+      ),
+    );
+    if (!mounted) return;
+
+    if (action == StuckDialogAction.undo) {
+      await game.undo();
+    } else if (action == StuckDialogAction.addTube) {
+      game.addExtraTube();
+    } else if (action == StuckDialogAction.restart) {
+      game.restart();
+    } else if (action == StuckDialogAction.menu) {
+      Navigator.of(context).pop();
+    } else {
+      _dialogOpen = false;
+    }
   }
 
   Future<void> _openWinDialog(GameController game) async {
     final level = game.level;
     if (level == null) {
-      _winDialogOpen = false;
+      _dialogOpen = false;
       return;
     }
 
@@ -117,7 +150,7 @@ class _GameScreenState extends State<GameScreen>
     } else if (action == WinDialogAction.menu) {
       Navigator.of(context).pop();
     } else {
-      _winDialogOpen = false;
+      _dialogOpen = false;
     }
   }
 
@@ -145,8 +178,6 @@ class _GameScreenState extends State<GameScreen>
                           geometry: _geometry,
                         ),
                       ),
-                      if (game.status == GameStatus.stuck)
-                        _StuckBanner(text: strings.noMovesLeft),
                       const GameToolbar(),
                     ],
                   ),
@@ -155,24 +186,6 @@ class _GameScreenState extends State<GameScreen>
                 ],
               )
             : Center(child: Text(strings.noLevels)),
-      ),
-    );
-  }
-}
-
-class _StuckBanner extends StatelessWidget {
-  const _StuckBanner({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.bodyMedium,
-        textAlign: TextAlign.center,
       ),
     );
   }
