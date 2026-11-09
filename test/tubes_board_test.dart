@@ -48,6 +48,49 @@ void main() {
     expect(harness.game.selected, 0);
   });
 
+  testWidgets('the selected tube is painted above its neighbours', (
+    tester,
+  ) async {
+    final harness = await TestHarness.create();
+    addTearDown(harness.dispose);
+    harness.game.startLevel(
+      testLevel(
+        colorCount: 4,
+        tubes: [
+          [0, 1],
+          [1, 0],
+          [0, 1],
+          [1, 0],
+          [0, 1],
+          [1, 0],
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<GameController>.value(value: harness.game),
+          ChangeNotifierProvider<SettingsController>.value(
+            value: harness.settings,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: TubesBoard())),
+      ),
+    );
+
+    // A tube in the last row is lifted over the row above, so it has to be the
+    // last child of the board's stack or the neighbour cuts it off.
+    await tester.tap(find.byType(TubeWidget).at(5));
+    await tester.pump();
+
+    final tubes = tester
+        .widgetList<TubeWidget>(find.byType(TubeWidget))
+        .toList();
+    expect(tubes.last.index, 5);
+    expect(tubes.last.selected, isTrue);
+  });
+
   testWidgets('fits an 18-tube capacity-5 board on a small phone', (
     tester,
   ) async {

@@ -93,6 +93,10 @@ class GameController extends ChangeNotifier {
   /// Runs the pouring animation before the move is committed.
   Future<void> Function(Move move, Tubes before)? playPourAnimation;
 
+  /// Plays the pour effect. The screen calls this when the pour animation
+  /// reaches the moment the liquid leaves the tube, so sound and stream match.
+  void playPourSound() => audio?.play(Sfx.pour);
+
   /// True when the tube at [index] is full of a single color.
   bool isComplete(int index) => isTubeComplete(_tubes[index], _capacity);
 
@@ -190,7 +194,6 @@ class GameController extends ChangeNotifier {
     _busy = true;
     _selected = null;
     _version++;
-    audio?.play(Sfx.pour);
     notifyListeners();
 
     final before = _tubes;

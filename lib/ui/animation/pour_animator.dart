@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:math' show max;
+import 'dart:math' show cos, max, min, sin;
 
 import 'package:flutter/material.dart';
 
+import '../../core/tube_metrics.dart';
 import '../../domain/models/move.dart';
 
 /// Board-local positions of the tubes, written by `TubesBoard` on every layout
@@ -35,6 +36,11 @@ class PourAnimator extends ChangeNotifier {
   Tubes? _before;
   Completer<void>? _completer;
   bool _disposed = false;
+  bool _pourAnnounced = false;
+
+  /// Called once per pour when the liquid actually starts leaving the tube, so
+  /// the pour sound lines up with the stream instead of the tap.
+  VoidCallback? onPourStart;
 
   Move? get move => _move;
 
@@ -61,6 +67,50 @@ class PourAnimator extends ChangeNotifier {
 
   double get pourFraction => pourT;
 
+  /// How far the tube is tilted, 0..1 (it straightens again on the way back).
+  double get tiltAmount => (tiltT - returnT).clamp(0.0, 1.0);
+
+  /// Lip of the tilted source tube: the lowest point of its mouth, i.e. where
+  /// the liquid actually leaves the glass.
+  Offset get streamOrigin {
+    final rect = flyingRect;
+    if (rect == Rect.zero) return Offset.zero;
+
+    // The mouth's leaning corner, rotated around the mouth centre (the pivot
+    // the tube tilts on): with the barrel on the opposite side this corner is
+    // the lowest point of the opening.
+    final corner = Offset(-_lean * rect.width / 2, 0);
+    final angle = tiltAngle;
+    return rect.topCenter +
+        Offset(
+          corner.dx * cos(angle) - corner.dy * sin(angle),
+          corner.dx * sin(angle) + corner.dy * cos(angle),
+        );
+  }
+
+  /// Side the barrel leans to while pouring: +1 for the right, -1 for the
+  /// left. It always points towards the middle of the board, so a tube pouring
+  /// into a column near one edge still lies inside the board instead of running
+  /// off the screen.
+  double get _lean {
+    final move = _move;
+    if (move == null) return 1;
+    final target = geometry.rects[move.to];
+    if (target == null) return 1;
+
+    var minLeft = double.infinity;
+    var maxRight = double.negativeInfinity;
+    for (final rect in geometry.rects.values) {
+      minLeft = min(minLeft, rect.left);
+      maxRight = max(maxRight, rect.right);
+    }
+    final middle = (minLeft + maxRight) / 2;
+    return target.center.dx >= middle ? -1 : 1;
+  }
+
+  /// How far the tube leans while pouring, in radians.
+  static const double _maxTilt = 0.66;
+
   Rect get fromRect => _rect(_move?.from);
 
   Rect get toRect => _rect(_move?.to);
@@ -70,14 +120,23 @@ class PourAnimator extends ChangeNotifier {
     return geometry.rects[index] ?? Rect.zero;
   }
 
-  /// The source tube's position while it pours: next to the target, at the
-  /// same height, on the side it came from.
+  /// The source tube's position while it pours: its lip ends up right above
+  /// the middle of the target's mouth, so the liquid falls straight in.
+  ///
+  /// The tube tilts around the centre of its mouth, so the mouth is placed by
+  /// working backwards from where the lip should be at full tilt.
   Rect _pourRect(Rect start, Rect target) {
-    final fromLeft = target.center.dx >= start.center.dx;
-    final left = fromLeft
-        ? target.left - start.width * 0.85
-        : target.right - start.width * 0.15;
-    return Rect.fromLTWH(left, target.top, start.width, start.height);
+    final width = start.width;
+    final lean = _lean;
+
+    // Lip just above the target's rim, centred on its opening.
+    final lip = Offset(target.center.dx, target.top - target.height * 0.03);
+    final mouth = Offset(
+      lip.dx + lean * width / 2 * cos(_maxTilt),
+      lip.dy - width / 2 * sin(_maxTilt),
+    );
+
+    return Rect.fromLTWH(mouth.dx - width / 2, mouth.dy, width, start.height);
   }
 
   Rect get flyingRect {
@@ -94,28 +153,44 @@ class PourAnimator extends ChangeNotifier {
     return Rect.lerp(start, end, travelT)!;
   }
 
-  /// Tilt in radians; it leans towards the target and straightens on return.
+  /// Tilt in radians; positive leans the barrel to the left, negative to the
+  /// right. It straightens again on the way back.
   double get tiltAngle {
-    final move = _move;
-    if (move == null) return 0;
-    final start = geometry.rects[move.from];
-    final target = geometry.rects[move.to];
-    if (start == null || target == null) return 0;
-
-    final sign = target.center.dx >= start.center.dx ? 1.0 : -1.0;
+    if (_move == null) return 0;
     final amount = (tiltT - returnT).clamp(0.0, 1.0);
-    return sign * 1.1 * amount;
+    return -_lean * _maxTilt * amount;
   }
-
-  Offset get streamStart => flyingRect.topCenter;
-
-  Offset get streamEnd => toRect.topCenter;
 
   /// Stream opacity: fades in at the start of the pour, out at the end.
   double get streamOpacity {
     final t = pourT;
     if (t <= 0 || t >= 1) return 0;
     return max(0, (t * 8).clamp(0.0, 1.0) * ((1 - t) * 8).clamp(0.0, 1.0));
+  }
+
+  /// Liquid surface of the target tube while it fills, in board coordinates.
+  /// Falls back to the rim before the pour starts.
+  Offset streamImpact(int capacity) {
+    final target = toRect;
+    if (target == Rect.zero) return Offset.zero;
+    final move = _move;
+    final before = _before;
+    if (move == null || before == null) return target.topCenter;
+
+    final usableTop = tubeUsableTop(target.width, target.height);
+    final layerHeight = (target.height - usableTop) / capacity;
+    final filled = before[move.to].length + move.count * pourFraction;
+    final y = (target.bottom - filled * layerHeight).clamp(
+      target.top + usableTop,
+      target.bottom - target.width * 0.1,
+    );
+    // Drop straight down from the lip: the stream should look like it is
+    // falling into the mouth, not arcing across it.
+    final x = streamOrigin.dx.clamp(
+      target.left + target.width * 0.14,
+      target.right - target.width * 0.14,
+    );
+    return Offset(x, y);
   }
 
   int? get pourColor {
@@ -154,6 +229,7 @@ class PourAnimator extends ChangeNotifier {
 
     _move = move;
     _before = before;
+    _pourAnnounced = false;
     final completer = _completer = Completer<void>();
     notifyListeners();
 
@@ -178,7 +254,13 @@ class PourAnimator extends ChangeNotifier {
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 
-  void _handleTick() => notifyListeners();
+  void _handleTick() {
+    if (!_pourAnnounced && _move != null && _t >= 0.5) {
+      _pourAnnounced = true;
+      onPourStart?.call();
+    }
+    notifyListeners();
+  }
 
   @override
   void dispose() {

@@ -1,4 +1,4 @@
-import 'dart:math' show max, min;
+import 'dart:math' show cos, max, min, pi, sin;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -109,11 +109,22 @@ class TubesBoard extends StatelessWidget {
         final animating = move != null && before != null;
         final pourColor = animator?.pourColor;
 
+        // The selected tube rises by `lift` and can overlap the row above or
+        // below, so paint it last: it must never be cut off by a neighbour.
+        final selected = game.selected;
+        final order = <int>[
+          for (var i = 0; i < tubeCount; i++)
+            if (i != selected) i,
+          if (selected != null && selected >= 0 && selected < tubeCount)
+            selected,
+        ];
+
         return SizedBox.expand(
           child: Stack(
             children: [
-              for (var i = 0; i < tubeCount; i++)
+              for (final i in order)
                 Positioned.fromRect(
+                  key: ValueKey<int>(i),
                   rect: rects[i]!,
                   child: _tube(
                     game,
@@ -128,6 +139,7 @@ class TubesBoard extends StatelessWidget {
                 ),
               if (animating && pourColor != null)
                 _flyingTube(
+                  context,
                   animator!,
                   game.capacity,
                   pourColor,
@@ -188,6 +200,7 @@ class TubesBoard extends StatelessWidget {
   }
 
   Widget _flyingTube(
+    BuildContext context,
     PourAnimator animation,
     int capacity,
     int pourColor,
@@ -200,11 +213,12 @@ class TubesBoard extends StatelessWidget {
             Positioned.fill(
               child: CustomPaint(
                 painter: _StreamPainter(
-                  start: animation.streamStart,
-                  end: animation.streamEnd,
+                  origin: animation.streamOrigin,
+                  impact: animation.streamImpact(capacity),
                   color: kPalette[pourColor],
                   opacity: animation.streamOpacity,
-                  width: animation.flyingRect.width * 0.16,
+                  width: animation.flyingRect.width * 0.3,
+                  progress: animation.pourFraction,
                 ),
               ),
             ),
@@ -220,6 +234,11 @@ class TubesBoard extends StatelessWidget {
                     selected: false,
                     colorBlind: colorBlind,
                     complete: false,
+                    outlineColor: tubeOutlineColor(
+                      Theme.of(context).brightness,
+                      Theme.of(context).colorScheme,
+                    ),
+                    bodyColor: Theme.of(context).scaffoldBackgroundColor,
                     topLayerFraction: animation.flyingTopFraction,
                   ),
                 ),
@@ -232,44 +251,161 @@ class TubesBoard extends StatelessWidget {
   }
 }
 
+/// Draws the falling stream plus what it does when it hits the surface: an
+/// expanding ripple on the liquid and a few droplets thrown up around it.
 class _StreamPainter extends CustomPainter {
   const _StreamPainter({
-    required this.start,
-    required this.end,
+    required this.origin,
+    required this.impact,
     required this.color,
     required this.opacity,
     required this.width,
+    required this.progress,
   });
 
-  final Offset start;
-  final Offset end;
+  /// Mouth of the tilted source tube.
+  final Offset origin;
+
+  /// Point where the stream lands, i.e. the target's current liquid surface.
+  final Offset impact;
   final Color color;
   final double opacity;
+
+  /// Width of the stream at its widest, just below the lip.
   final double width;
+
+  /// 0 → 1 across the pour phase; drives the wobble and the splash animation.
+  final double progress;
+
+  static const int _steps = 40;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (opacity <= 0) return;
+    if (opacity <= 0 || origin == Offset.zero || impact == Offset.zero) return;
+
+    final dx = impact.dx - origin.dx;
+    final dy = impact.dy - origin.dy;
+    // Water leaves the mouth at an angle and lands almost vertically, so the
+    // curve is slow at first and steep at the end.
+    final c1 = Offset(origin.dx + dx * 0.25, origin.dy + dy * 0.45);
+    final c2 = Offset(impact.dx, impact.dy - dy * 0.5);
+
+    final centers = <Offset>[];
+    final halves = <double>[];
+    for (var i = 0; i <= _steps; i++) {
+      final u = i / _steps;
+      final point = _cubic(origin, c1, c2, impact, u);
+      // A small wobble travelling down the stream keeps it from looking drawn.
+      final wobble = sin(u * 5.2 - progress * 9) * width * 0.1 * u;
+      centers.add(Offset(point.dx + wobble, point.dy));
+      // Narrow at the lip, full just below it, then necking in as it falls —
+      // a constant-width bar reads as a painted stripe rather than water.
+      final profile = 0.7 + 0.36 * sin(u * pi * 0.85);
+      halves.add(width * profile / 2);
+    }
 
     final path = Path()
-      ..moveTo(start.dx, start.dy)
-      ..quadraticBezierTo(start.dx, end.dy, end.dx, end.dy);
+      ..moveTo(centers.first.dx - halves.first, centers.first.dy);
+    for (var i = 1; i <= _steps; i++) {
+      path.lineTo(centers[i].dx - halves[i], centers[i].dy);
+    }
+    for (var i = _steps; i >= 0; i--) {
+      path.lineTo(centers[i].dx + halves[i], centers[i].dy);
+    }
+    path.close();
+    canvas.drawPath(path, Paint()..color = color.withValues(alpha: opacity));
 
+    // Bright core so the stream reads as moving water rather than a stripe.
+    final core = Path()..moveTo(centers.first.dx, centers.first.dy);
+    for (var i = 1; i <= _steps; i++) {
+      core.lineTo(centers[i].dx, centers[i].dy);
+    }
     canvas.drawPath(
-      path,
+      core,
       Paint()
-        ..color = color.withValues(alpha: opacity)
+        ..color = Colors.white.withValues(alpha: opacity * 0.3)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = width
+        ..strokeWidth = width * 0.26
         ..strokeCap = StrokeCap.round,
+    );
+
+    _paintSplash(canvas);
+  }
+
+  /// Ripples and droplets around [impact].
+  void _paintSplash(Canvas canvas) {
+    // Pale, flattened splash where the stream meets the surface.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: impact,
+        width: width * 1.15,
+        height: width * 0.36,
+      ),
+      Paint()..color = Colors.white.withValues(alpha: opacity * 0.26),
+    );
+
+    for (var ring = 0; ring < 2; ring++) {
+      final s = (progress * 2.4 + ring * 0.5) % 1.0;
+      // Kept inside the target's walls: a ripple wider than the tube would
+      // spill over its outline.
+      final radiusX = width * (0.5 + 1.15 * s);
+      final radiusY = radiusX * 0.32;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: impact,
+          width: radiusX * 2,
+          height: radiusY * 2,
+        ),
+        Paint()
+          ..color = color.withValues(alpha: opacity * (1 - s) * 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width * 0.16 * (1 - s * 0.6),
+      );
+    }
+
+    // Droplets thrown up and out, each on its own little ballistic arc: they
+    // rise, slow down and fall back into the surface by the end of their life.
+    const dropletCount = 8;
+    final dropletColor = Color.lerp(color, Colors.white, 0.22)!;
+    for (var k = 0; k < dropletCount; k++) {
+      final t = (progress * 3.1 + k * 0.37) % 1.0;
+      final alpha = opacity * (1 - t) * 0.95;
+      if (alpha <= 0.02) continue;
+
+      final angle = -1.35 + k * (2.7 / (dropletCount - 1));
+      final lift = width * (1.5 + (k % 3) * 0.35);
+      final center = Offset(
+        impact.dx + sin(angle) * lift * 1.15 * t,
+        impact.dy - cos(angle) * lift * t + lift * t * t,
+      );
+      final r = width * 0.14 * (1 - 0.4 * t);
+      canvas.drawOval(
+        Rect.fromCenter(center: center, width: r * 1.5, height: r * 2.2),
+        Paint()..color = dropletColor.withValues(alpha: alpha),
+      );
+    }
+  }
+
+  static Offset _cubic(Offset a, Offset b, Offset c, Offset d, double u) {
+    final v = 1 - u;
+    return Offset(
+      v * v * v * a.dx +
+          3 * v * v * u * b.dx +
+          3 * v * u * u * c.dx +
+          u * u * u * d.dx,
+      v * v * v * a.dy +
+          3 * v * v * u * b.dy +
+          3 * v * u * u * c.dy +
+          u * u * u * d.dy,
     );
   }
 
   @override
   bool shouldRepaint(covariant _StreamPainter oldDelegate) =>
-      oldDelegate.start != start ||
-      oldDelegate.end != end ||
+      oldDelegate.origin != origin ||
+      oldDelegate.impact != impact ||
       oldDelegate.color != color ||
       oldDelegate.opacity != opacity ||
-      oldDelegate.width != width;
+      oldDelegate.width != width ||
+      oldDelegate.progress != progress;
 }

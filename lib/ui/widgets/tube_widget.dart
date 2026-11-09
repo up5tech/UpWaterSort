@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'tube_painter.dart';
 
-/// Presentation-only tube: draws [layers], lifts when [selected] and flashes
-/// a golden glow when it becomes [complete]. Taps are dispatched by the board.
-class TubeWidget extends StatefulWidget {
+/// Presentation-only tube: draws [layers] and lifts when [selected]. Taps are
+/// dispatched by the board.
+///
+/// The tube fills its body with the screen background (so it occludes the tubes
+/// behind it) and draws no shadow (PLAN.md §12.3).
+class TubeWidget extends StatelessWidget {
   const TubeWidget({
     super.key,
     required this.index,
@@ -51,97 +54,47 @@ class TubeWidget extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<TubeWidget> createState() => _TubeWidgetState();
-}
-
-class _TubeWidgetState extends State<TubeWidget>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _glow = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 450),
-  );
-  bool _wasComplete = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Tubes that are already complete on entry (e.g. resumed game) must not
-    // flash; only a fresh completion does.
-    _wasComplete = widget.complete;
-  }
-
-  @override
-  void didUpdateWidget(TubeWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.complete && !_wasComplete) {
-      _glow.forward(from: 0);
-    } else if (!widget.complete && _wasComplete) {
-      _glow.value = 1;
-    }
-    _wasComplete = widget.complete;
-  }
-
-  @override
-  void dispose() {
-    _glow.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.hidden) {
-      return SizedBox(width: widget.width, height: widget.height);
+    if (hidden) {
+      return SizedBox(width: width, height: height);
     }
+
+    final theme = Theme.of(context);
+    final outline = tubeOutlineColor(theme.brightness, theme.colorScheme);
+    final selectedOutline = tubeSelectedOutlineColor(
+      theme.brightness,
+      theme.colorScheme,
+    );
 
     return RepaintBoundary(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         curve: Curves.easeOut,
-        transform: Matrix4.translationValues(
-          0,
-          widget.selected ? -widget.lift : 0,
-          0,
-        ),
+        transform: Matrix4.translationValues(0, selected ? -lift : 0, 0),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
+          onTap: onTap,
           child: Semantics(
             button: true,
-            selected: widget.selected,
-            label: widget.semanticsLabel ?? 'Tube ${widget.index + 1}',
+            selected: selected,
+            label: semanticsLabel ?? 'Tube ${index + 1}',
             child: SizedBox(
-              width: widget.width,
-              height: widget.height,
-              child: AnimatedBuilder(
-                animation: _glow,
-                builder: (context, child) {
-                  final glow = 1 - _glow.value;
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        if (glow > 0)
-                          BoxShadow(
-                            color: Colors.amber.withValues(alpha: 0.65 * glow),
-                            blurRadius: 22 * glow,
-                            spreadRadius: 2 * glow,
-                          ),
-                      ],
-                    ),
-                    child: child,
-                  );
-                },
-                child: CustomPaint(
-                  painter: TubePainter(
-                    layers: widget.layers,
-                    capacity: widget.capacity,
-                    selected: widget.selected,
-                    colorBlind: widget.colorBlind,
-                    complete: widget.complete,
-                    hinted: widget.hinted,
-                    topLayerFraction: widget.topLayerFraction,
-                    extraLayerColor: widget.extraLayerColor,
-                    extraLayerFraction: widget.extraLayerFraction,
-                  ),
+              width: width,
+              height: height,
+              child: CustomPaint(
+                painter: TubePainter(
+                  layers: layers,
+                  capacity: capacity,
+                  selected: selected,
+                  colorBlind: colorBlind,
+                  complete: complete,
+                  outlineColor: outline,
+                  selectedOutlineColor: selectedOutline,
+                  bodyColor: theme.scaffoldBackgroundColor,
+                  hinted: hinted,
+                  topLayerFraction: topLayerFraction,
+                  extraLayerColor: extraLayerColor,
+                  extraLayerFraction: extraLayerFraction,
                 ),
               ),
             ),

@@ -49,6 +49,7 @@ class _GameScreenState extends State<GameScreen>
       _game = game..addListener(_handleGameChanged);
     }
     game.playPourAnimation = _animator.play;
+    _animator.onPourStart = game.playPourSound;
   }
 
   @override
@@ -66,7 +67,9 @@ class _GameScreenState extends State<GameScreen>
     _game
       ?..removeListener(_handleGameChanged)
       ..playPourAnimation = null;
-    _animator.dispose();
+    _animator
+      ..onPourStart = null
+      ..dispose();
     super.dispose();
   }
 

@@ -4,15 +4,27 @@ UpWaterSort ships only bundled, royalty-free assets (PLAN.md §4, AGENTS.md §2.
 
 ## Audio — `assets/audio/*.wav`
 
-The five sound effects are **synthesised from scratch by this repository** with
+Four of the five effects (`select`, `complete_tube`, `error`, `win`) are
+**synthesised from scratch by this repository** with
 `dart run tool/generate_sfx.dart` (sine waves and filtered white noise, fixed
 seed 2024). They contain no third-party recordings or samples and are released
 as **CC0 / public domain** together with the source script.
 
+`pour.wav` is a trimmed excerpt of a **public-domain recording**:
+
+- Source: `Pouring water in mug in sink.ogg`, Wikimedia Commons,
+  <https://commons.wikimedia.org/wiki/File:Pouring_water_in_mug_in_sink.ogg>
+- Author: earthcalling (pdsounds.org record 73), released into the public domain
+  by the author.
+- Processing: decoded to 44.1 kHz mono 16-bit, 0.70 s cut from 16.50 s of the
+  recording (the steadiest stretch: level variation 0.28, no isolated clinks),
+  DC removed, 15 ms fade-in and 250 ms fade-out, RMS-normalised with a soft
+  limiter. No other samples were added.
+
 | File | Event | Length |
 |---|---|---|
 | `select.wav` | tube selected | ~0.13 s |
-| `pour.wav` | pouring liquid | ~0.75 s |
+| `pour.wav` | pouring liquid (real recording) | ~0.70 s |
 | `complete_tube.wav` | tube completed | ~0.45 s |
 | `error.wav` | invalid move | ~0.26 s |
 | `win.wav` | level won | ~1.7 s |

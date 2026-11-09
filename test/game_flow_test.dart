@@ -19,6 +19,13 @@ Widget _app(TestHarness harness) => MultiProvider(
   child: const UpWaterSortApp(),
 );
 
+/// Tubes are painted in a different order once one is selected, so finders must
+/// address them by their model index rather than by tree position.
+Finder _tube(int index) => find.byWidgetPredicate(
+  (widget) => widget is TubeWidget && widget.index == index,
+  description: 'tube $index',
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -36,9 +43,9 @@ void main() {
     final level = harness.levels.byId(1)!;
     final solution = Solver.solve(level.tubes, level.capacity)!;
     for (final move in solution) {
-      await tester.tap(find.byType(TubeWidget).at(move.from));
+      await tester.tap(_tube(move.from));
       await tester.pump();
-      await tester.tap(find.byType(TubeWidget).at(move.to));
+      await tester.tap(_tube(move.to));
       // The move is committed only after the pour animation finishes.
       await tester.pumpAndSettle();
     }
@@ -72,15 +79,15 @@ void main() {
 
     final level = harness.levels.byId(1)!;
     final move = Solver.solve(level.tubes, level.capacity)!.first;
-    await tester.tap(find.byType(TubeWidget).at(move.from));
+    await tester.tap(_tube(move.from));
     await tester.pump();
-    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.tap(_tube(move.to));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.game.busy, isTrue);
     expect(harness.game.moves, 0);
 
-    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.tap(_tube(move.to));
     await tester.pump();
     expect(harness.game.moves, 0);
     expect(harness.game.selected, isNull);
@@ -100,9 +107,9 @@ void main() {
 
     final level = harness.levels.byId(1)!;
     final move = Solver.solve(level.tubes, level.capacity)!.first;
-    await tester.tap(find.byType(TubeWidget).at(move.from));
+    await tester.tap(_tube(move.from));
     await tester.pump();
-    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.tap(_tube(move.to));
     await tester.pump(const Duration(milliseconds: 200));
     expect(harness.game.moves, 0);
 
@@ -128,9 +135,9 @@ void main() {
 
     final level = harness.levels.byId(1)!;
     final move = Solver.solve(level.tubes, level.capacity)!.first;
-    await tester.tap(find.byType(TubeWidget).at(move.from));
+    await tester.tap(_tube(move.from));
     await tester.pump();
-    await tester.tap(find.byType(TubeWidget).at(move.to));
+    await tester.tap(_tube(move.to));
     await tester.pumpAndSettle();
 
     final movedTubes = [
