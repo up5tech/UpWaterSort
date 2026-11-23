@@ -28,6 +28,7 @@ class UpWaterSortApp extends StatelessWidget {
         LevelSelectScreen.routeName: (_) => const LevelSelectScreen(),
         SettingsScreen.routeName: (_) => const SettingsScreen(),
       },
+      debugShowCheckedModeBanner: false,
     );
   }
 }
